@@ -1,0 +1,17 @@
+﻿@using ChatApp.Shared
+@using Microsoft.AspNetCore.Components.Routing
+@using MudBlazor
+@using Microsoft.AspNetCore.Components
+
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="typeof(MainLayout)" /> <!-- Note the type casting -->
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(MainLayout)">
+            <!-- Note the type casting -->
+            <MudText Typo="Typo.h4">Sorry, there's nothing at this address.</MudText>
+        </LayoutView>
+    </NotFound>
+</Router>

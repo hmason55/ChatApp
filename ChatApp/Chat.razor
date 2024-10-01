@@ -1,0 +1,175 @@
+﻿@page "/chat"
+@using ChatApp.Models
+@using ChatApp.Models.Responses
+@using Microsoft.JSInterop
+@using MudBlazor
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject IConfiguration Configuration
+
+<MudPaper Class="p-4">
+    <MudText Typo="Typo.body1">
+        Messages:
+    </MudText>
+
+    <MudList T="string">
+        @foreach (var message in messages)
+        {
+            <MudListItem>
+                <MudText Typo="Typo.body1">
+                    @message.Role: @message.Content
+                </MudText>
+            </MudListItem>
+        }
+    </MudList>
+
+    <MudTextField @bind-Value="userInput" Label="Enter your message" />
+
+    <!-- Select API Provider -->
+    <MudSelect T="string" Label="Select Provider" @bind-Value="selectedProvider">
+        @foreach(var provider in Providers)
+        {
+            <MudSelectItem T="string" Value=@provider>@provider</MudSelectItem>
+        }
+    </MudSelect>
+
+    <!-- Select Model Based on Provider 
+
+        dynamic load the models from config
+        Configuration[OpenAI:Models]
+
+    -->
+
+    <MudSelect T="string" Label="Select Model" @bind-Value="selectedModel">
+        @foreach (string model in Configuration.GetSection($"{selectedProvider}:Models")?.Get<string[]>() ?? [])
+        {
+            <MudSelectItem T="string" Value=@model>@model</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudButton OnClick="SendMessage" Color="Color.Primary">Send</MudButton>
+</MudPaper>
+
+@code {
+    private List<Message> messages = new List<Message>();
+    private string userInput = string.Empty;
+    private string selectedProvider = "OpenAI";  // Default provider
+    private string selectedModel = "gpt-3.5-turbo";  // Default OpenAI model
+
+    private Dictionary<string, string> apiKeys;
+    private Dictionary<string, string> apiEndpoints;
+
+    // Initialize API keys and endpoints
+    protected override void OnInitialized()
+    {
+        apiKeys = new Dictionary<string, string>
+        {
+            { "OpenAI", Configuration["OpenAI:ApiKey"] },
+            { "Claude", Configuration["Claude:ApiKey"] },
+            { "LMStudio", Configuration["LMStudio:ApiKey"] }
+        };
+
+        apiEndpoints = new Dictionary<string, string>
+        {
+            { "OpenAI", Configuration["OpenAI:Endpoint"] },
+            { "Claude", Configuration["Claude:Endpoint"] },
+            { "LMStudio", Configuration["LMStudio:Endpoint"] }
+        };
+    }
+
+    private async Task SendMessage()
+    {
+        // Validate input
+        if (string.IsNullOrEmpty(userInput)) return;
+
+        // Fetch API key and endpoint for the selected provider
+        var apiKey = apiKeys[selectedProvider];
+        var endpoint = apiEndpoints[selectedProvider];
+
+        try
+        {
+            // Send the message and get a reply
+            var botReply = await SendMessageAsync(userInput, apiKey, selectedProvider, selectedModel, endpoint);
+
+            // Add the user message and bot reply to the message list
+            messages.Add(new Message { Role = "User", Content = userInput });
+            messages.Add(new Message { Role = "Bot", Content = botReply });
+
+            // Clear the user input after message is sent
+            userInput = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending message: {ex.Message}");
+        }
+    }
+
+    private async Task<string> SendMessageAsync(string userInput, string apiKey, string provider, string model, string endpoint)
+    {
+        // Switch provider and call respective API
+        switch (provider)
+        {
+            case "OpenAI":
+            case "Claude":
+                return await SendMessageToAPIAsync(userInput, apiKey, model, endpoint);
+            case "LMStudio":
+                return await SendMessageToLMStudioAsync(userInput, endpoint);
+            default:
+                throw new ArgumentException("Unknown provider specified");
+        }
+    }
+
+    // Sends messages to OpenAI or Claude API
+    private async Task<string> SendMessageToAPIAsync(string userInput, string apiKey, string model, string endpoint)
+    {
+        var request = new
+        {
+            model = model,
+            messages = new[] { new Message { Role = "user", Content = userInput } }
+        };
+
+        var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = JsonContent.Create(request)
+        };
+
+        if (!string.IsNullOrEmpty(apiKey))
+        {
+            httpRequestMessage.Headers.Add("Authorization", $"Bearer {apiKey}");
+        }
+
+        var response = await Http.SendAsync(httpRequestMessage);
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<OpenAIResponse>();
+        return result?.choices?[0]?.message?.content ?? "No response received.";
+    }
+
+    // Sends messages to LMStudio (local model)
+    private async Task<string> SendMessageToLMStudioAsync(string userInput, string endpoint)
+    {
+        var request = new
+        {
+            prompt = userInput,
+            max_tokens = 1000
+        };
+
+        var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = JsonContent.Create(request)
+        };
+
+        var response = await Http.SendAsync(httpRequestMessage);
+        response.EnsureSuccessStatusCode();
+
+        var result = await response.Content.ReadFromJsonAsync<LMStudioResponse>();
+        return result?.result ?? "No response received.";
+    }
+
+    private List<string> Providers = 
+    [
+        "OpenAI",
+        "Claude",
+        "LMStudio"
+    ];
+}

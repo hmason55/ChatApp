@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatApp</title>
+    <base href="/" />
+    <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+    <link href="ChatApp.styles.css" rel="stylesheet" />
+    <!-- Highlight.js CSS - you can choose a theme -->
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/styles/vs2015.min.css">
+
+
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <!-- Highlight.js JavaScript -->
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/highlight.min.js"></script>
+
+    <!-- Highlight.js Language for C# (or other languages as needed) -->
+    <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.4.0/languages/csharp.min.js"></script>
+
+    <!-- Initialize Highlight.js when the page is loaded -->
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            hljs.highlightAll();
+        });
+
+        // Function to trigger highlight.js after Blazor renders
+        function highlightCode() {
+            hljs.highlightAll();
+        }
+    </script>
+
+</head>
+<body>
+    <div id="app">Loading...</div>
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+﻿@inherits LayoutComponentBase
+@using MudBlazor
+@namespace ChatApp.Shared
+
+<MudThemeProvider Theme="_myCustomTheme" />
+<MudPopoverProvider />
+
+@* Needed for dialogs *@
+<MudDialogProvider />
+
+@* Needed for snackbars *@
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="4" Color="Color.Primary">
+        <MudText Typo="Typo.h6" Class="text-white">ChatApp</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" OnClick="ToggleNavMenu" />
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="1" ClipMode="DrawerClipMode.Always">
+        <MudNavMenu>
+            <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
+                Home
+            </MudNavLink>
+            <MudNavLink Href="chat" Icon="@Icons.Material.Filled.ChatBubble">
+                Chat
+            </MudNavLink>
+            <MudNavLink Href="counter" Icon="@Icons.Material.Filled.Add">
+                Counter
+            </MudNavLink>
+            <MudNavLink Href="weather" Icon="@Icons.Material.Filled.Cloud">
+                Weather
+            </MudNavLink>
+        </MudNavMenu>
+    </MudDrawer>
+
+    <MudMainContent>
+        <MudContainer>
+            @Body <!-- This renders the current page -->
+        </MudContainer>
+    </MudMainContent>
+
+    <MudDivider />
+
+    <MudText Align="Align.Center" Typo="Typo.body1">© 2024 - Chat App</MudText>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = false;
+
+    // Define your custom MudTheme here
+    private MudTheme _myCustomTheme = new MudTheme();
+
+    private void ToggleNavMenu()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}
