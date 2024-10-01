@@ -2,7 +2,7 @@
 @using MudBlazor
 @namespace ChatApp.Shared
 
-<MudThemeProvider Theme="_myCustomTheme" />
+<MudThemeProvider Theme="_myCustomTheme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
 
 @* Needed for dialogs *@
@@ -15,6 +15,7 @@
     <MudAppBar Elevation="4" Color="Color.Primary">
         <MudText Typo="Typo.h6" Class="text-white">ChatApp</MudText>
         <MudSpacer />
+        <MudIconButton Icon="@ThemeIcon" Color="Color.Inherit" OnClick="ToggleDarkMode" />
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" OnClick="ToggleNavMenu" />
     </MudAppBar>
 
@@ -25,12 +26,6 @@
             </MudNavLink>
             <MudNavLink Href="chat" Icon="@Icons.Material.Filled.ChatBubble">
                 Chat
-            </MudNavLink>
-            <MudNavLink Href="counter" Icon="@Icons.Material.Filled.Add">
-                Counter
-            </MudNavLink>
-            <MudNavLink Href="weather" Icon="@Icons.Material.Filled.Cloud">
-                Weather
             </MudNavLink>
         </MudNavMenu>
     </MudDrawer>
@@ -48,6 +43,10 @@
 
 @code {
     private bool _drawerOpen = false;
+    private bool _isDarkMode = false;
+    private string ThemeIcon => _isDarkMode
+    ? Icons.Material.Filled.LightMode
+    : Icons.Material.Filled.ModeNight;
 
     // Define your custom MudTheme here
     private MudTheme _myCustomTheme = new MudTheme();
@@ -55,5 +54,10 @@
     private void ToggleNavMenu()
     {
         _drawerOpen = !_drawerOpen;
+    }
+
+    private void ToggleDarkMode()
+    {
+        _isDarkMode = !_isDarkMode;
     }
 }

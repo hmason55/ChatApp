@@ -1,35 +1,51 @@
 ﻿@page "/chat"
 @using ChatApp.Models
 @using ChatApp.Models.Responses
+@using Markdig
 @using Microsoft.JSInterop
 @using MudBlazor
+@using System.Net.Http.Headers
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject IConfiguration Configuration
 
-<MudPaper Class="p-4">
+
+<style>
+    /* Make the text within MudListItems selectable */
+    .selectable-text {
+        user-select: text; /* Enable text selection */
+        cursor: text; /* Change the cursor to text selection cursor */
+    }
+</style>
+
+<MudStack Class="p-4" Spacing="4">
     <MudText Typo="Typo.body1">
         Messages:
     </MudText>
 
-    <MudList T="string">
+    <MudList T="string" Selectable>
         @foreach (var message in messages)
         {
-            <MudListItem>
-                <MudText Typo="Typo.body1">
-                    @message.Role: @message.Content
-                </MudText>
+            <MudListItem T="string" Class="selectable-text" high Ripple="false">
+                @if (message.IsUser)
+                {
+                    @($"{message.Role}:") @(new MarkupString(Markdown.ToHtml(message.Content)))
+                }
+                else
+                {
+                    @($"{message.Role}:") @(new MarkupString(Markdown.ToHtml(message.Content)))
+                }
             </MudListItem>
         }
     </MudList>
 
-    <MudTextField @bind-Value="userInput" Label="Enter your message" />
+    <MudTextField @bind-Value="userInput" Label="Enter your message" AutoGrow="true"/>
 
     <!-- Select API Provider -->
-    <MudSelect T="string" Label="Select Provider" @bind-Value="selectedProvider">
-        @foreach(var provider in Providers)
+    <MudSelect T="string" Label="Select Provider" @bind-Value="selectedProvider" >
+        @foreach (KeyValuePair<string, Provider> kvp in Configuration.Get<Dictionary<string, Provider>>() ?? [])
         {
-            <MudSelectItem T="string" Value=@provider>@provider</MudSelectItem>
+            <MudSelectItem T="string" Value=@kvp.Key>@kvp.Key</MudSelectItem>
         }
     </MudSelect>
 
@@ -48,12 +64,16 @@
     </MudSelect>
 
     <MudButton OnClick="SendMessage" Color="Color.Primary">Send</MudButton>
-</MudPaper>
+</MudStack>
 
 @code {
     private List<Message> messages = new List<Message>();
     private string userInput = string.Empty;
+
     private string selectedProvider = "OpenAI";  // Default provider
+    private string previousProvider;
+
+
     private string selectedModel = "gpt-3.5-turbo";  // Default OpenAI model
 
     private Dictionary<string, string> apiKeys;
@@ -75,6 +95,18 @@
             { "Claude", Configuration["Claude:Endpoint"] },
             { "LMStudio", Configuration["LMStudio:Endpoint"] }
         };
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if(previousProvider != selectedProvider)
+        {
+            previousProvider = selectedProvider;
+            selectedModel = Configuration.GetSection($"{selectedProvider}:Models")?.Get<string[]>()?.FirstOrDefault() ?? "None";
+            StateHasChanged();
+        }
+
+        await JS.InvokeVoidAsync("highlightCode");
     }
 
     private async Task SendMessage()
@@ -110,8 +142,9 @@
         switch (provider)
         {
             case "OpenAI":
+                return await SendMessageToOpenAIAsync(userInput, apiKey, model, endpoint);
             case "Claude":
-                return await SendMessageToAPIAsync(userInput, apiKey, model, endpoint);
+                return await SendMessageToClaudeAsync(userInput, apiKey, model, endpoint);
             case "LMStudio":
                 return await SendMessageToLMStudioAsync(userInput, endpoint);
             default:
@@ -120,7 +153,7 @@
     }
 
     // Sends messages to OpenAI or Claude API
-    private async Task<string> SendMessageToAPIAsync(string userInput, string apiKey, string model, string endpoint)
+    private async Task<string> SendMessageToOpenAIAsync(string userInput, string apiKey, string model, string endpoint)
     {
         var request = new
         {
@@ -138,11 +171,67 @@
             httpRequestMessage.Headers.Add("Authorization", $"Bearer {apiKey}");
         }
 
-        var response = await Http.SendAsync(httpRequestMessage);
-        response.EnsureSuccessStatusCode();
+        try
+        {
+            var response = await Http.SendAsync(httpRequestMessage);
+            var result = await response.Content.ReadFromJsonAsync<OpenAIResponse>();
+            return result?.choices?[0]?.message?.content ?? "No response received.";
+        }
+        catch(Exception e)
+        {
+            return $"An error occurred while sending the request: {e.Message}";
+        }
 
-        var result = await response.Content.ReadFromJsonAsync<OpenAIResponse>();
-        return result?.choices?[0]?.message?.content ?? "No response received.";
+    }
+
+    private async Task<string> SendMessageToClaudeAsync(string userInput, string apiKey, string model, string endpoint)
+    {
+        // Request structure for Claude's API
+        var request = new
+        {
+            prompt = userInput,  // The prompt to send to Claude
+            model = model,  // Model selection, e.g., "claude-v1" or "claude-v2"
+            max_tokens_to_sample = 1000,  // Maximum tokens to generate
+            stop_sequences = new string[] { "\n" },  // Optional stop sequences
+            temperature = 0.7  // Optional temperature setting for response diversity
+        };
+
+        var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = JsonContent.Create(request)
+        };
+
+        // Add the API key to the request header
+        if (!string.IsNullOrEmpty(apiKey))
+        {
+            httpRequestMessage.Headers.Add("x-api-key", apiKey);  // Add the API key header
+            httpRequestMessage.Headers.Add("anthropic-version", "2023-06-01");  // Specify the Anthropic version
+           
+        }
+
+        httpRequestMessage.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+
+        // TODO fix credits too low on anthropic
+
+
+
+        try
+        {
+            // Send the request
+            var response = await Http.SendAsync(httpRequestMessage);
+
+            // Read and deserialize the response
+            var result = await response.Content.ReadFromJsonAsync<ClaudeResponse>();
+
+            // Return the generated completion (response)
+            return result?.completion ?? "No response received.";
+        }
+        catch (Exception e)
+        {
+            // Handle any errors during the request
+            return $"An error occurred while sending the request: {e.Message}";
+        }
     }
 
     // Sends messages to LMStudio (local model)
