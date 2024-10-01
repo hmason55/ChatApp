@@ -4,11 +4,7 @@
 
 <MudThemeProvider Theme="_myCustomTheme" IsDarkMode="_isDarkMode" />
 <MudPopoverProvider />
-
-@* Needed for dialogs *@
 <MudDialogProvider />
-
-@* Needed for snackbars *@
 <MudSnackbarProvider />
 
 <MudLayout>
@@ -40,24 +36,3 @@
 
     <MudText Align="Align.Center" Typo="Typo.body1">© 2024 - Chat App</MudText>
 </MudLayout>
-
-@code {
-    private bool _drawerOpen = false;
-    private bool _isDarkMode = false;
-    private string ThemeIcon => _isDarkMode
-    ? Icons.Material.Filled.LightMode
-    : Icons.Material.Filled.ModeNight;
-
-    // Define your custom MudTheme here
-    private MudTheme _myCustomTheme = new MudTheme();
-
-    private void ToggleNavMenu()
-    {
-        _drawerOpen = !_drawerOpen;
-    }
-
-    private void ToggleDarkMode()
-    {
-        _isDarkMode = !_isDarkMode;
-    }
-}
